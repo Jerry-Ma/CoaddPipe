@@ -13,7 +13,7 @@ conf.read(['setup.cfg'])
 metadata = dict(conf.items('metadata'))
 
 PACKAGENAME = metadata.get('package_name', 'coaddpipe')
-DESCRIPTION = metadata.get('description', 'Pipeline to co-add astronomical images')
+DESCRIPTION = metadata.get('description', 'A pipeline to co-add astronomical images')
 AUTHOR = metadata.get('author', 'Zhiyuan Ma')
 AUTHOR_EMAIL = metadata.get('author_email', '')
 LICENSE = metadata.get('license', 'unknown')

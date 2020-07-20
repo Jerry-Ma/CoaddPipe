@@ -153,13 +153,17 @@ def main(*args, **kwargs):
                 scilist.append(hdu)
             else:
                 asslist.append(hdu)
-        fits.HDUList(scilist).writeto(outname, overwrite=True)
+        scilist = fits.HDUList(scilist)
+        scilist.writeto(outname, overwrite=True)
         out_assoc = outname.rsplit(".fits", 1)[0] + ".assoc"
         log("write associate extentions {}".format(out_assoc))
-        fits.HDUList(asslist).writeto(out_assoc, overwrite=True)
+        asslist = fits.HDUList(asslist)
+        asslist.writeto(out_assoc, overwrite=True)
         pr = qa.create_preview(
                 hdulist=hdulist, filename=outname, delete_data=True)
         pr.save()
+        del scilist
+        del asslist
     if whtfile is not None:
         outname = outname.replace(".fits", '.wht.fits')
         with fits.open(whtfile, memmap=True) as hdulist:
@@ -183,13 +187,17 @@ def main(*args, **kwargs):
                     scilist.append(hdu)
                 else:
                     asslist.append(hdu)
-            fits.HDUList(scilist).writeto(outname, overwrite=True)
+            scilist = fits.HDUList(scilist)
+            scilist.writeto(outname, overwrite=True)
             out_assoc = outname.rsplit(".fits", 1)[0] + ".assoc"
             log("write associate extentions {}".format(out_assoc))
-            fits.HDUList(asslist).writeto(out_assoc, overwrite=True)
+            asslist = fits.HDUList(asslist)
+            asslist.writeto(out_assoc, overwrite=True)
             pr = qa.create_preview(
                     hdulist=hdulist, filename=outname, delete_data=True)
             pr.save()
+            del scilist
+            del asslist
 
 
 def select_images(jobfile, jobdir, checkfile, **kwargs):

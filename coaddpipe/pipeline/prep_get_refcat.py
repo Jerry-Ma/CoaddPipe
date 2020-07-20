@@ -188,7 +188,7 @@ def stack_cats(in_cats, out_cat, **kwargs):
         The stacked catalog
     """
     tbls = [Table.read(f, format='ascii.commented_header') for f in in_cats]
-    tbl = vstack(tbls, join_type='exact')
+    tbl = vstack(tbls, join_type='outer')
     # use ra_sdss as key
     # tbl_w_key = tbl[~tbl['ra_sdss'].mask]
     # tbl_wo_key = tbl[tbl['ra_sdss'].mask]
@@ -235,7 +235,8 @@ def query_sdss(**kwargs):
     sql_query = '\n'.join(sql_query).format(**kwargs)
     log("query SDSS with sql string\n{}".format(sql_query))
     cat = SDSS.query_sql(sql_query)
-    log("{} stars found in SDSS".format(len(cat)))
+    if cat is not None:
+        log("{} stars found in SDSS".format(len(cat)))
     return cat
 
 
@@ -368,24 +369,27 @@ def query_panstarrs(**kwargs):
                 # filter the catalog
                 cat = Table.read(out_file, format='votable')
                 log("{} PS1 sources before filtering".format(len(cat)))
-                # good source flags
-                goodflag = 0x00000004 | 0x00000010 | 0x00000020
-                # cat['qualityFlag'].fill_value = 0xFFFFFFFF
-                # qualityflag = cat['qualityFlag'].astype(int)
-                qualityflag = cat['qualityflag']
-                cat = cat[((qualityflag & goodflag) == goodflag) &
-                          (cat['ramean'] >= kwargs['min_ra']) &
-                          (cat['ramean'] <= kwargs['max_ra']) &
-                          (cat['decmean'] >= kwargs['min_dec']) &
-                          (cat['decmean'] <= kwargs['max_dec'])
-                          ]
-                log("{} PS1 sources after filtering".format(len(cat)))
-                cats[i] = cat
+                if len(cat) > 0:
+                    # good source flags
+                    goodflag = 0x00000004 | 0x00000010 | 0x00000020
+                    # cat['qualityFlag'].fill_value = 0xFFFFFFFF
+                    # qualityflag = cat['qualityFlag'].astype(int)
+                    qualityflag = cat['qualityflag']
+                    cat = cat[((qualityflag & goodflag) == goodflag) &
+                              (cat['ramean'] >= kwargs['min_ra']) &
+                              (cat['ramean'] <= kwargs['max_ra']) &
+                              (cat['decmean'] >= kwargs['min_dec']) &
+                              (cat['decmean'] <= kwargs['max_dec'])
+                              ]
+                    log("{} PS1 sources after filtering".format(len(cat)))
+                    cats[i] = cat
             except Exception as e:
                 print(e)
                 # pass
     if len([c for c in cats if c is None]) > 0:
-        raise ValueError("unable to query some of the PAN-STARRS positions.")
+        # raise ValueError("unable to query some of the PAN-STARRS positions.")
+        log("unable to query some of the PAN-STARRS positions.")
+        return None
     # cats = []
     # for i, (cra, cdec) in enumerate(
     #         itertools.product(ra_centers, dec_centers)):

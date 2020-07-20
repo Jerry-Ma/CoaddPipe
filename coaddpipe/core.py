@@ -341,10 +341,11 @@ def _qa_worker(image, config):
                     val = re.sub(r'\s+', '_', val.strip())
                 values.append(val)
             # QA image
-            preview = qa.create_preview(hdulist=hdulist)
-            preview.save()
+            # preview = qa.create_preview(hdulist=hdulist)
+            # preview.save()
             # mask guide ota
-            values.insert(0, ','.join(map(str, preview.mask_chips)))
+            # values.insert(0, ','.join(map(str, preview.mask_chips)))
+            values.insert(0, ','.join(map(str, [])))
             # append filename
             values.append(image)
         keys = ['mask_chips', ] + headers[instru] + ['filename', ]

@@ -119,7 +119,7 @@ def main(*args, **kwargs):
             extentry = master[
                     (master[ck['chip']] == chip) &
                     (master['catind'] == i)]
-            print(extentry)
+            # print(extentry)
             if len(extentry) == 0:
                 k = b = 99
                 s = '<replace>'
@@ -170,38 +170,52 @@ def match_refcat(*args, **kwargs):
     # print(parsed_filename)
     band = parsed_filename['band']
     log("use band {}".format(band))
-    if band == 'u':
-        log('no ps1 data for u band')
-        refkey = 'sdss'
-    elif band == 'Y':
-        log("no sdss data for Y band")
-        refkey = 'ps1'
-    else:
-        # figure out coverage from recat
-        refcat = Table.read(ref_file, format='ascii.commented_header')
-        samp_lim = (17, 18)
-        samp_counts = {}
-        for key in ['sdss', 'ps1']:
-            samp_counts[key] = len(
-                refcat[
-                    (refcat['{}_{}'.format(band, key)] > samp_lim[0]) &
-                    (refcat['{}_{}'.format(band, key)] < samp_lim[1])
-                    ])
-        if samp_counts['sdss'] > 1.1 * samp_counts['ps1']:
-            log("use sdss ({sdss}) over ps1 ({ps1})".format(**samp_counts))
-            refkey = 'sdss'
-        elif samp_counts['ps1'] > 1.1 * samp_counts['sdss']:
-            log("use ps1 ({ps1}) over sdss ({sdss})".format(**samp_counts))
-            refkey = 'ps1'
-        else:
-            log("use preferred sdss ({sdss})".format(**samp_counts))
-            refkey = 'sdss'
+    refkey = 'ps1'
+    # if band == 'u':
+    #     log('no ps1 data for u band')
+    #     refkey = 'sdss'
+    # elif band == 'Y':
+    #     log("no sdss data for Y band")
+    #     refkey = 'ps1'
+    # else:
+    #     # figure out coverage from recat
+    #     refcat = Table.read(ref_file, format='ascii.commented_header')
+    #     samp_lim = (17, 18)
+    #     samp_counts = {}
+    #     for key in ['sdss', 'ps1']:
+    #         samp_counts[key] = len(
+    #             refcat[
+    #                 (refcat['{}_{}'.format(band, key)] > samp_lim[0]) &
+    #                 (refcat['{}_{}'.format(band, key)] < samp_lim[1])
+    #                 ])
+    #     if samp_counts['sdss'] > 1.1 * samp_counts['ps1']:
+    #         log("use sdss ({sdss}) over ps1 ({ps1})".format(**samp_counts))
+    #         refkey = 'sdss'
+    #     elif samp_counts['ps1'] > 1.1 * samp_counts['sdss']:
+    #         log("use ps1 ({ps1}) over sdss ({sdss})".format(**samp_counts))
+    #         refkey = 'ps1'
+    #     else:
+    #         log("use preferred sdss ({sdss})".format(**samp_counts))
+    #         refkey = 'sdss'
 
-    icmd1 = 'select "{band}_{refkey} < 90. && {band}_{refkey} > 0' \
-            ' && err_{band}_{refkey} <= 0.10857"' \
-        .format(band=band, refkey=refkey)
+    refband = band.lower()
+    reftbl = Table.read(ref_file, format='ascii.commented_header')
     icmd2 = 'select "MAG_AUTO < 90. && MAGERR_AUTO >= 0.001 && FLAGS == 0"'
-    stilts_match = """{stilts_cmd}
+    if '{}_{}'.format(refband, refkey) not in reftbl.colnames:
+        print("unable to find refcat entries.")
+        stilts_match = """{stilts_cmd}
+                    tpipe
+                    in={cat_file}
+                    cmd={icmd2}
+                    ifmt=ascii
+                    out={out_file}
+                    ofmt=ascii""".format(
+                            stilts_cmd=kwargs['stilts_cmd'], **locals())
+    else:
+        icmd1 = 'select "{band}_{refkey} < 90. && {band}_{refkey} > 0' \
+                ' && err_{band}_{refkey} <= 0.10857"' \
+            .format(band=refband, refkey=refkey)
+        stilts_match = """{stilts_cmd}
                    tmatch2
                    matcher=sky
                    in1={ref_file}
@@ -218,11 +232,9 @@ def match_refcat(*args, **kwargs):
                    ofmt=ascii""".format(
                         stilts_cmd=kwargs['stilts_cmd'], **locals())
     subprocess.check_call(map(str.strip, stilts_match.split("\n")))
-
     tbl = Table.read(out_file, format='ascii.commented_header')
     # get ready for self-calibration
     log("{} {} stars in total".format(len(tbl), refkey))
-
     copycol = [
             ('ra_{refkey}', 'REF_RA'), ('dec_{refkey}', 'REF_DEC'),
             ('u_{refkey}', 'REF_MAG_U'), ('err_u_{refkey}', 'REF_ERR_U'),
@@ -279,6 +291,11 @@ def cleanup(*args, **kwargs):
     # cell_edge_pad = bpm_edge_pad = 25
     # ota_edge_pad = 50
     cat = Table.read(cat_file, format='ascii.sextractor')
+    # get stars only
+    ncat = len(cat)
+    cat = cat[cat['CLASS_STAR'] >= 0.95]
+    print("{}/{} ({}%) stars in photcat selected".format(
+        len(cat), ncat, len(cat) * 100 // ncat))
 
     # figure out layout
     # mask out region
@@ -402,7 +419,7 @@ def get_context(photgrp, band, layout):
              'g': ('g', 'r'),
              'r': ('g', 'r'),
              'i': ('r', 'i'),
-             'z': ('i', 'z'),
+             'z': ('z', 'y'),
              'Y': ('z', 'y'),
              }
     ck = {
@@ -412,6 +429,7 @@ def get_context(photgrp, band, layout):
             Y=(0, 19),
             z=(0, 19), u=(0, 19), i=(0, 20)).get(band, (0, 20)),
         'semaglims': dict(
+            z=(0, 0.02),
             Y=(0, 0.02),
             ).get(band, (0, 0.05)),
         'mag': 'OBS_MAG_AUTO',
@@ -425,10 +443,11 @@ def get_context(photgrp, band, layout):
         'cband': cband[band],
         'cmag1': 'REF_MAG_{0}'.format(cband[band][0].upper()),
         'cmag2': 'REF_MAG_{0}'.format(cband[band][1].upper()),
-        'clip0': 5.0,
+        'clip0': 20.0,
         'clipsc': 3.0,
         'airmass': 'AIRMASS',
-        'kins': dict(g=0.14, z=-0.1342).get(band, 0.),
+        # 'kins': dict(g=0.14, z=-0.1342).get(band, 0.),
+        'kins': dict(Y=0.1322, z=0.5).get(band, 0.),
         'layout': layout
         }
     return ck

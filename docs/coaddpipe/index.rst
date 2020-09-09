@@ -2,9 +2,7 @@
 CoaddPipe Documentation
 ***********************
 
-CoaddPipe is a configurable pipeline for making mosaics out of a collection of
-individually de-trended images.
-
+This is the documentation for CoaddPipe.
 
 Reference/API
 =============

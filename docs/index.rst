@@ -3,7 +3,6 @@ Documentation
 
 This is the documentation for CoaddPipe.
 
-
 .. toctree::
   :maxdepth: 2
 
